@@ -1,0 +1,16 @@
+paths:
+  input_dir: "./input"
+  output_excel: "./processed/enriched_glassbox_results.xlsx"
+  log_file: "./logs/SageWatch_logger.log"
+
+excel:
+  required_columns:
+    - "Fiscal Week"
+    - "Date"
+    - "Order Number"
+    - "Improve Text"
+    - "Glassbox Link"
+    - "Sat/Dissat"
+
+api:
+  order_details_url: "https://carepulse-server.g3p.pcf.dell.com/api/getOrderDetails"
