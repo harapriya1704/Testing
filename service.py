@@ -1,67 +1,82 @@
+import time
+import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import time
-import yaml
-from pathlib import Path
-from excel_reader import read_excel_with_required_columns
-from file_operations import append_session_to_excel
-from carepulse_fetcher import fetch_filtered_order_details
-from glassbox_scraper import extract_glassbox_session_data
-from utils import convert_excel_date
 from logger import logger
+from config import INPUT_DIR, PROCESSED_DIR, OUTPUT_DIR, LOGS_DIR, GLASSBOX_URL
+from glassbox_scraper import create_silent_edge_driver, wait_for_authentication, process_glassbox_links
+from excel_reader import read_excel_with_required_columns
+from file_operations import initialize_output_excel
 
-with open("config.yml", "r") as f:
-    config = yaml.safe_load(f)
+class ExcelHandler(FileSystemEventHandler):
+    def __init__(self, driver):
+        self.driver = driver
+        self.processing = False
 
-INPUT_DIR = Path(config["paths"]["input_dir"])
-USERNAME = config.get("auth", {}).get("username", "")
-PASSWORD = config.get("auth", {}).get("password", "")
-
-class ExcelFileHandler(FileSystemEventHandler):
     def on_created(self, event):
-        if event.src_path.endswith(".xlsx"):
-            logger.info(f"New file detected: {event.src_path} — processing will start in 2 seconds.")
-            time.sleep(2)
-            try:
-                df = read_excel_with_required_columns(event.src_path)
-                logger.info(f"Extracted {len(df)} DSAT rows from {event.src_path}")
-                for _, row in df.iterrows():
-                    entry = {
-                        "fiscal_week": row["Fiscal Week"],
-                        "date": row["Date"],
-                        "order_number": row["Order Number"],
-                        "sat_dissat": row["Sat/Dissat"],
-                        "improve_text": row["Improve Text"],
-                        "glassbox_link": row["Glassbox Link"]
-                    }
+        if not event.is_directory and event.src_path.endswith('.xlsx'):
+            logger.info(f"New file detected: {event.src_path}")
+            time.sleep(2)  # Ensure file is fully written
+            self.process_file(event.src_path)
 
-                    # Extract session data from Glassbox
-                    session_data = extract_glassbox_session_data(entry["glassbox_link"], USERNAME, PASSWORD)
-                    entry.update(session_data)
+    def process_file(self, input_path):
+        if self.processing:
+            logger.warning("Already processing a file. Skipping...")
+            return
+            
+        self.processing = True
+        try:
+            filename = input_path.split("\\")[-1]
+            output_path = OUTPUT_DIR / f"enriched_{filename}"
+            processed_path = PROCESSED_DIR / filename
+            
+            # Initialize output
+            initialize_output_excel(output_path)
+            logger.info(f"Created output file: {output_path}")
+            
+            # Extract data
+            data = read_excel_with_required_columns(input_path)
+            logger.info(f"Extracted {len(data)} DSAT records from {filename}")
+            
+            # Process with existing driver
+            process_glassbox_links(data, output_path, self.driver)
+            logger.info(f"Processed {len(data)} Glassbox sessions")
+            
+            # Move to processed folder
+            shutil.move(input_path, processed_path)
+            logger.info(f"Moved {filename} to processed folder")
+            
+        except Exception as e:
+            logger.error(f"Error processing file: {e}", exc_info=True)
+        finally:
+            self.processing = False
 
-                    # Fetch order details from API
-                    excel_date = convert_excel_date(entry["date"])
-                    entry["order_details"] = fetch_filtered_order_details(entry["order_number"], excel_date)
-
-                    # Append to output Excel
-                    append_session_to_excel(entry)
-
-                logger.info(f"✅ Finished processing {event.src_path}")
-            except Exception as e:
-                logger.error(f"❌ Error processing {event.src_path}: {e}")
-
-def start_monitor():
-    event_handler = ExcelFileHandler()
+def main():
+    logger.info("🚀 Starting SageWatch service")
+    
+    # Start browser and authenticate
+    logger.info("🌐 Launching browser...")
+    driver = create_silent_edge_driver()
+    driver.get(GLASSBOX_URL)
+    wait_for_authentication(driver)
+    logger.info("🔑 Authentication successful")
+    
+    # Start folder watcher
+    event_handler = ExcelHandler(driver)
     observer = Observer()
-    observer.schedule(event_handler, str(INPUT_DIR), recursive=False)
+    observer.schedule(event_handler, path=str(INPUT_DIR), recursive=False)
     observer.start()
-    logger.info("Folder monitoring started...")
+    logger.info(f"👀 Watching folder: {INPUT_DIR}")
+    
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
+        logger.info("🛑 Stopping service...")
         observer.stop()
+        driver.quit()
     observer.join()
+    logger.info("✅ Service stopped")
 
 if __name__ == "__main__":
-    start_monitor()
+    main()
