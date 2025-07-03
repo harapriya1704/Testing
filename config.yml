@@ -1,16 +1,24 @@
-paths:
-  input_dir: "./input"
-  output_excel: "./processed/enriched_glassbox_results.xlsx"
-  log_file: "./logs/SageWatch_logger.log"
+import os
+from pathlib import Path
 
-excel:
-  required_columns:
-    - "Fiscal Week"
-    - "Date"
-    - "Order Number"
-    - "Improve Text"
-    - "Glassbox Link"
-    - "Sat/Dissat"
+# Base directory
+BASE_DIR = Path(__file__).parent
 
-api:
-  order_details_url: "https://carepulse-server.g3p.pcf.dell.com/api/getOrderDetails"
+# Folder paths
+INPUT_DIR = BASE_DIR / "input"
+PROCESSED_DIR = BASE_DIR / "processed"
+OUTPUT_DIR = BASE_DIR / "output"
+LOGS_DIR = BASE_DIR / "logs"
+
+# Create directories if missing
+for directory in [INPUT_DIR, PROCESSED_DIR, OUTPUT_DIR, LOGS_DIR]:
+    directory.mkdir(exist_ok=True)
+
+# Glassbox configuration
+GLASSBOX_URL = "https://glassbox.dell.com/webinterface/webui/sessions"
+WAIT_TIMES = {
+    "PAGE_LOAD": 40,
+    "GIA_LOAD": 25,
+    "SHORT": 10,
+    "COOKIE_EXTRACTION": 20
+}
