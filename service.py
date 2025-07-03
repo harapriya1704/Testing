@@ -2,8 +2,8 @@ import time
 import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from logger import logger
-from config import INPUT_DIR, PROCESSED_DIR, OUTPUT_DIR, LOGS_DIR, GLASSBOX_URL
+from logger import logger  # Use your custom logger
+from config import INPUT_DIR, PROCESSED_DIR, OUTPUT_DIR, GLASSBOX_URL
 from glassbox_scraper import create_silent_edge_driver, wait_for_authentication, process_glassbox_links
 from excel_reader import read_excel_with_required_columns
 from file_operations import initialize_output_excel
