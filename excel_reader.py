@@ -1,21 +1,38 @@
-import pandas as pd
-import yaml
+from openpyxl import load_workbook
 from logger import logger
 
-with open("config.yml", "r") as f:
-    config = yaml.safe_load(f)
-
-REQUIRED_COLUMNS = set(config["excel"]["required_columns"])
-
 def read_excel_with_required_columns(file_path):
-    logger.info(f"Reading Excel file: {file_path}")
-    df = pd.read_excel(file_path, engine="openpyxl")
-    missing = REQUIRED_COLUMNS - set(df.columns)
-    if missing:
-        raise ValueError(f"Missing columns: {missing}")
-    df_filtered = df[list(REQUIRED_COLUMNS)]
-    df_filtered = df_filtered[
-        df_filtered["Sat/Dissat"].astype(str).str.strip().str.upper() == "DSAT"
-    ]
-    df_filtered = df_filtered[df_filtered["Order Number"].notna()]
-    return df_filtered
+    try:
+        wb = load_workbook(file_path)
+        ws = wb.active
+        
+        headers = {cell.value: idx for idx, cell in enumerate(ws[1])}
+        required_columns = [
+            "Fiscal Week", "Date", "Order Number", 
+            "Improve Text", "Glassbox Link", "Sat/Dissat"
+        ]
+        
+        # Verify required columns
+        missing = [col for col in required_columns if col not in headers]
+        if missing:
+            logger.error(f"Missing columns in {file_path}: {', '.join(missing)}")
+            return []
+        
+        # Extract DSAT records
+        data = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[headers["Sat/Dissat"]] == "DSAT":
+                data.append({
+                    "fiscal_week": row[headers["Fiscal Week"]],
+                    "date": row[headers["Date"]],
+                    "order_number": row[headers["Order Number"]],
+                    "improve_text": row[headers["Improve Text"]],
+                    "glassbox_link": row[headers["Glassbox Link"]],
+                    "sat_dissat": "DSAT"
+                })
+                
+        return data
+        
+    except Exception as e:
+        logger.error(f"Error reading {file_path}: {e}", exc_info=True)
+        return []
