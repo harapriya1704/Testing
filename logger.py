@@ -4,12 +4,12 @@ from pathlib import Path
 
 # Define log directory and file path
 BASE_DIR = Path(__file__).resolve().parent
-log_dir = Path(BASE_DIR / "logs")
+log_dir = BASE_DIR / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 log_file = log_dir / "SageWatch_logger.log"
 
 # Create a logger
-logger = logging.getLogger("SageWatch_logger")
+logger = logging.getLogger("SageWatch")
 logger.setLevel(logging.DEBUG)
 
 # Formatter for logs
