@@ -25,30 +25,28 @@ class LLMAnalyser:
             api_key=os.environ["DEV_GENAI_API_KEY"]
         )
 
+    # In llm_analyser.py
     def _load_prompt_template(self):
-        """Load and structure the analysis prompt"""
-        return """📋 **DSAT Analysis Instructions**
-        
-        Analyze the following data to identify the root cause of customer dissatisfaction:
-        
-        ### Input Data:
-        1. GIA Insights: {gia_insights}
-        2. Client Sessions: {client_sessions}
-        3. Server Sessions: {server_sessions}
-        4. Order Details: {order_details}
-        5. Customer Comment: {improve_text}
-        
-        ### Analysis Guidelines:
-        - Prioritize server-side errors if present (extract page names from URLs)
-        - Cross-reference GIA insights with client sessions
-        - Match customer comments with technical evidence
-        - Categorize using: client-side, server-side, shipping delay, delivery delay, 
-          missing carrier link, waybill email failure, payment issue, technical error
-        
-        ### Required Output Format:
-        Reason: <comma-separated root causes>
-        Details: <concise 2-line explanation mentioning specific pages if server-side>
-        """
+        return """**DSAT Root Cause Analysis**
+
+    **Data Sources**:
+    1. Customer Feedback: {improve_text}
+    2. Behavioral Insights (GIA): {gia_insights}
+    3. Client-Side Sessions: {client_sessions}
+    4. Server-Side Errors: {server_sessions}
+    5. Order Details: {order_details}
+
+    **Analysis Instructions**:
+    1. Identify PRIMARY cause from: [client-side, server-side, shipping delay, delivery delay, missing carrier link, waybill email failure, payment issue, technical error]
+    2. For server-side issues: Extract page name from URL
+    3. For client-side issues: Note specific struggles from GIA
+    4. Match customer comments to technical evidence
+    5. If multiple causes: List all relevant
+
+    **Output Format**:
+    Reason: <comma-separated causes>
+    Details: <2-line summary with specific page names if server-side>
+    """
 
     def _extract_page_names(self, server_sessions):
         """Extract page names from server session URLs"""
@@ -94,4 +92,5 @@ class LLMAnalyser:
             return response.choices[0].message.content.strip()
             
         except Exception as e:
-            return f"Analysis failed: {str(e)}"
+            logger.error(f"LLM analysis failed: {str(e)}")
+            return "Reason: analysis error\nDetails: Failed to generate summary"
