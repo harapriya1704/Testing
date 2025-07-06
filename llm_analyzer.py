@@ -1,0 +1,97 @@
+import os
+import json
+from openai import OpenAI
+import httpx
+import certifi
+from dotenv import load_dotenv
+from urllib.parse import urlparse
+
+# Load environment variables
+load_dotenv('.env', override=True)
+
+class LLMAnalyser:
+    def __init__(self):
+        self.client = self._setup_client()
+        self.prompt_template = self._load_prompt_template()
+        self.model = "mixtral-8x7b-instruct-v01"
+        self.max_tokens = 300
+
+    def _setup_client(self):
+        """Set up authenticated API client"""
+        http_client = httpx.Client(verify=certifi.where())
+        return OpenAI(
+            base_url='https://genai-api-dev.dell.com/v1',
+            http_client=http_client,
+            api_key=os.environ["DEV_GENAI_API_KEY"]
+        )
+
+    def _load_prompt_template(self):
+        """Load and structure the analysis prompt"""
+        return """📋 **DSAT Analysis Instructions**
+        
+        Analyze the following data to identify the root cause of customer dissatisfaction:
+        
+        ### Input Data:
+        1. GIA Insights: {gia_insights}
+        2. Client Sessions: {client_sessions}
+        3. Server Sessions: {server_sessions}
+        4. Order Details: {order_details}
+        5. Customer Comment: {improve_text}
+        
+        ### Analysis Guidelines:
+        - Prioritize server-side errors if present (extract page names from URLs)
+        - Cross-reference GIA insights with client sessions
+        - Match customer comments with technical evidence
+        - Categorize using: client-side, server-side, shipping delay, delivery delay, 
+          missing carrier link, waybill email failure, payment issue, technical error
+        
+        ### Required Output Format:
+        Reason: <comma-separated root causes>
+        Details: <concise 2-line explanation mentioning specific pages if server-side>
+        """
+
+    def _extract_page_names(self, server_sessions):
+        """Extract page names from server session URLs"""
+        if "No error sessions found" in server_sessions:
+            return "No server errors"
+            
+        pages = set()
+        for line in server_sessions.split('\n'):
+            if 'URL:' in line:
+                url = line.split('URL: ')[1].strip()
+                path = urlparse(url).path
+                if '/' in path:
+                    page = path.split('/')[-1] or path.split('/')[-2]
+                    pages.add(page)
+        return ", ".join(pages) if pages else "No identifiable pages"
+
+    def analyze_dsat(self, context):
+        """Analyze DSAT using all available data"""
+        try:
+            # Preprocess server sessions
+            server_pages = self._extract_page_names(context["Server-Sessions"])
+            
+            # Prepare prompt
+            formatted_prompt = self.prompt_template.format(
+                gia_insights=context.get("gia_insights", "N/A"),
+                client_sessions=context.get("Client-Sessions", "N/A"),
+                server_sessions=f"{context.get('Server-Sessions', 'N/A')}\nPages: {server_pages}",
+                order_details=json.dumps(context.get("order_details", {}), indent=2),
+                improve_text=context.get("improve_text", "N/A")
+            )
+            
+            # Call LLM API
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a customer experience analyst"},
+                    {"role": "user", "content": formatted_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=self.max_tokens
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            return f"Analysis failed: {str(e)}"
