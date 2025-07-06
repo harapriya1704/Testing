@@ -52,31 +52,31 @@ class ExcelHandler(FileSystemEventHandler):
             self.processing = False
 
 def main():
-    logger.info("🚀 Starting SageWatch service")
+    logger.info(" Starting SageWatch service")
     
     # Start browser and authenticate
-    logger.info("🌐 Launching browser...")
+    logger.info(" Launching browser...")
     driver = create_silent_edge_driver()
     driver.get(GLASSBOX_URL)
     wait_for_authentication(driver)
-    logger.info("🔑 Authentication successful")
+    logger.info(" Authentication successful")
     
     # Start folder watcher
     event_handler = ExcelHandler(driver)
     observer = Observer()
     observer.schedule(event_handler, path=str(INPUT_DIR), recursive=False)
     observer.start()
-    logger.info(f"👀 Watching folder: {INPUT_DIR}")
+    logger.info(f" Watching folder: {INPUT_DIR}")
     
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("🛑 Stopping service...")
+        logger.info(" Stopping service...")
         observer.stop()
         driver.quit()
     observer.join()
-    logger.info("✅ Service stopped")
+    logger.info(" Service stopped")
 
 if __name__ == "__main__":
     main()
