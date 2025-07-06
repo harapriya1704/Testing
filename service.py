@@ -7,6 +7,7 @@ from config import INPUT_DIR, PROCESSED_DIR, OUTPUT_DIR, GLASSBOX_URL
 from glassbox_scraper import create_silent_edge_driver, wait_for_authentication, process_glassbox_links
 from excel_reader import read_excel_with_required_columns
 from file_operations import initialize_output_excel
+from cert_updater import update_certifi
 
 class ExcelHandler(FileSystemEventHandler):
     def __init__(self, driver):
@@ -53,6 +54,13 @@ class ExcelHandler(FileSystemEventHandler):
 
 def main():
     logger.info(" Starting SageWatch service")
+
+     # Setup certificates for LLM
+    logger.info("Setting up certificates for GenAI API...")
+    if update_certifi():
+        logger.info("Certificate setup completed")
+    else:
+        logger.warning("Certificate setup failed - LLM may not work")
     
     # Start browser and authenticate
     logger.info(" Launching browser...")
