@@ -8,7 +8,7 @@ def initialize_output_excel(output_path):
     headers = [
         "Fiscal Week", "Date", "Order Number", "Sat/Dissat", "Improve Text",
         "GIA Insights", "Global_DellCEMSessionCookie_CSH", "Global_MCMID_CSH",
-        "Client-Sessions", "Server-Sessions", "Order Details"
+        "Client-Sessions", "Server-Sessions", "Order Details", "Summary"
     ]
     ws.append(headers)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -33,7 +33,8 @@ def append_session_to_excel(entry, output_path):
         entry.get("Global_MCMID_CSH", ""),
         entry.get("Client-Sessions", ""),
         entry.get("Server-Sessions", ""),
-        json.dumps(entry.get("order_details", {}))
+        json.dumps(entry.get("order_details", {})),
+        entry.get("summary", "")
     ]
     ws.append(row)
     wb.save(output_path)
@@ -46,3 +47,11 @@ def update_last_row_with_order_details(order_details, output_path):
     ws.cell(row=last_row, column=11).value = json.dumps(order_details)
     wb.save(output_path)
     print(f"🔄 Updated order details for last row in Excel.")
+
+def update_last_row_with_summary(summary, output_path):
+    wb = load_workbook(output_path)
+    ws = wb.active
+    last_row = ws.max_row
+    ws.cell(row=last_row, column=12).value = summary
+    wb.save(output_path)
+    print(f"📝 Updated summary for last row in Excel.")
