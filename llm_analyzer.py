@@ -23,6 +23,32 @@ class LLMAnalyser:
             base_url='https://genai-api-dev.dell.com/v1',
             http_client=http_client,
             api_key=os.environ["DEV_GENAI_API_KEY"]
+
+    # In LLMAnalyser class
+    def filter_splunk_events(self, events):
+        """Filter Splunk events for potential DSAT indicators"""
+        try:
+            prompt = f"""Analyze these Splunk events and return ONLY entries that indicate potential customer experience issues.
+            Return nothing if no issues found. Focus on errors, slow responses, or failed operations.
+    
+            Events:
+            {events}
+    
+            Filtered issues:"""
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a log analysis expert"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                max_tokens=500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"Splunk filtering failed: {str(e)}")
+            return "Splunk analysis error"
         )
 
     # In llm_analyser.py
