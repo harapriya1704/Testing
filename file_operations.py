@@ -1,15 +1,8 @@
 import json
 from openpyxl import Workbook, load_workbook
 import os
-import yaml
-from logger import logger
 
-with open("config.yml", "r") as f:
-    config = yaml.safe_load(f)
-
-OUTPUT_PATH = config["paths"]["output_excel"]
-
-def initialize_output_excel():
+def initialize_output_excel(output_path):
     wb = Workbook()
     ws = wb.active
     headers = [
@@ -18,15 +11,15 @@ def initialize_output_excel():
         "Client-Sessions", "Server-Sessions", "Order Details"
     ]
     ws.append(headers)
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    wb.save(OUTPUT_PATH)
-    logger.info(f"Initialized output Excel at {OUTPUT_PATH}")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    wb.save(output_path)
+    print(f"✅ Initialized output Excel at {output_path}")
 
-def append_session_to_excel(entry):
-    if not os.path.exists(OUTPUT_PATH):
-        initialize_output_excel()
+def append_session_to_excel(entry, output_path):
+    if not os.path.exists(output_path):
+        initialize_output_excel(output_path)
 
-    wb = load_workbook(OUTPUT_PATH)
+    wb = load_workbook(output_path)
     ws = wb.active
 
     row = [
@@ -43,5 +36,13 @@ def append_session_to_excel(entry):
         json.dumps(entry.get("order_details", {}))
     ]
     ws.append(row)
-    wb.save(OUTPUT_PATH)
-    logger.info(f"Appended session for order {entry.get('order_number')} to Excel.")
+    wb.save(output_path)
+    print(f"📥 Appended session for order {entry.get('order_number')} to Excel.")
+
+def update_last_row_with_order_details(order_details, output_path):
+    wb = load_workbook(output_path)
+    ws = wb.active
+    last_row = ws.max_row
+    ws.cell(row=last_row, column=11).value = json.dumps(order_details)
+    wb.save(output_path)
+    print(f"🔄 Updated order details for last row in Excel.")
