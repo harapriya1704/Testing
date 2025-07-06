@@ -10,6 +10,8 @@ from file_operations import append_session_to_excel, update_last_row_with_order_
 from selenium.webdriver.edge.options import Options
 from carepulse_fetcher import fetch_filtered_order_details
 from utils import convert_excel_date
+from file_operations import update_last_row_with_summary
+from llm_analyzer import LLMAnalyser
 import subprocess
 import time
 import json
@@ -280,6 +282,7 @@ def extract_cookie_values(driver):
 
 # Modified process_glassbox_links function:
 def process_glassbox_links(data, output_path, driver):
+    analyser = LLMAnalyser()
     for index, entry in enumerate(data):
         try:
             # Open new tab
@@ -288,7 +291,6 @@ def process_glassbox_links(data, output_path, driver):
             driver.get(entry["glassbox_link"])
             time.sleep(35)
 
-            # ... existing processing logic ...
             entry["gia_insights"] = extract_gia_insights(driver)
             close_gia_insights(driver)
 
@@ -302,7 +304,7 @@ def process_glassbox_links(data, output_path, driver):
             click_server_view_icon(driver)
             server_view_sessions = extract_server_view_sessions(driver)
             if isinstance(server_view_sessions, str):
-                entry["Server-Sessions"] = server_view_sessions  # e.g., "No error sessions found."
+                entry["Server-Sessions"] = server_view_sessions  
             else:
                 entry["Server-Sessions"] = "\n\n".join([
                     f"Time: {s['time']}\nURL: {s['url']}\nStatus: {s['status']}\nTotal Time (ms): {s['total_time_ms']}"
@@ -314,7 +316,7 @@ def process_glassbox_links(data, output_path, driver):
             entry["Global_DellCEMSessionCookie_CSH"] = dell_cookie
             entry["Global_MCMID_CSH"] = mcmid_cookie
 
-            # Write to specific output file
+            
             append_session_to_excel(entry, output_path)
             
             # Fetch API data
@@ -323,6 +325,18 @@ def process_glassbox_links(data, output_path, driver):
             entry["order_details"] = fetch_filtered_order_details(order_number, excel_date)
             
             update_last_row_with_order_details(entry["order_details"], output_path)
+
+            analysis_context = {
+                "gia_insights": entry.get("gia_insights", ""),
+                "Client-Sessions": entry.get("Client-Sessions", ""),
+                "Server-Sessions": entry.get("Server-Sessions", ""),
+                "order_details": entry.get("order_details", {}),
+                "improve_text": entry.get("improve_text", "")
+            }
+
+            entry["summary"] = analyser.analyze_dsat(analysis_context)
+
+            update_last_row_with_summary(entry["summary"], output_path)
 
         except Exception as e:
             print(f"Error processing link: {e}")
