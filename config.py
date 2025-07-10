@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent
 INPUT_DIR = BASE_DIR / "input"
 PROCESSED_DIR = BASE_DIR / "processed"
 OUTPUT_DIR = BASE_DIR / "output"
+MAX_WORKERS = 5
 
 
 GLASSBOX_URL = "https://glassbox.dell.com/webinterface/webui/sessions"
