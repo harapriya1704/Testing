@@ -28,7 +28,7 @@ def create_silent_edge_driver():
     driver = webdriver.Edge(service=service, options=options)
     return driver
 
-def wait_for_authentication(driver, timeout=50):
+def wait_for_authentication(driver, timeout=30):
     try:
         print(" Waiting for authentication to complete...")
         WebDriverWait(driver, timeout).until(
